@@ -8,7 +8,7 @@ from influxdb_client import InfluxDBClient
 from time import sleep
 
 # Set this to logging.DEBUG in odrder to see debugging messages
-loglevel = logging.DEBUG
+loglevel = logging.INFO
 
 
 def sigint_handler(signum, frame):
