@@ -9,6 +9,7 @@ from time import sleep
 
 # Set this to logging.DEBUG in odrder to see debugging messages
 loglevel = logging.INFO
+MAX_ERRORS = 5
 
 
 def sigint_handler(signum, frame):
@@ -20,19 +21,26 @@ def sigint_handler(signum, frame):
 
 def record_shelly_measurements(shelly):
     global interrupted
-
+    tolerate_errors = MAX_ERRORS
+    
     logging.debug(f"Thread for {shelly} started")
 
     with InfluxDBClient.from_config_file("influxdb.ini") as dbclient:
         while True:
-            timestamp = datetime.utcnow()
+            sleep(30)
 
             try:
                 r = requests.post(f"http://{shelly}/rpc",
                     data='{"id":1,"method":"Switch.GetStatus","params":{"id":0}}')
+                tolerate_errors = MAX_ERRORS
             except Exception as err:
-                logging.critical(f"{shelly} can't read switch status ({err})")
-                return
+                logging.error(f"{shelly} can't read switch status ({err})")
+                tolerate_errors = tolerate_errors - 1
+                if tolerate_errors == 0:
+                    logging.critical(f"{shelly} too many errors. Giving up.")
+                    return
+                else:
+                    continue
 
             try:
                 status = r.json()
@@ -64,7 +72,6 @@ def record_shelly_measurements(shelly):
 
             if interrupted:
                 break
-            sleep(30)
 
 
 if __name__ == "__main__":
